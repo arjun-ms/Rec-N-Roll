@@ -7,7 +7,7 @@ const preferredFormats = [
     'video/webm;codecs=vp9,opus',
     'video/webm;codecs=h264,opus',
     'video/webm',
-    'video/mp4;codecs=h264',
+    'video/mp4;codecs=h264,aac',
     'video/mp4'
 ];
 
@@ -26,7 +26,8 @@ function createMediaRecorder(stream, mimeType) {
     try {
         const options = mimeType ? { 
             mimeType,
-            videoBitsPerSecond: 2500000 // 2.5 Mbps for better quality
+            videoBitsPerSecond: 2500000, // 2.5 Mbps for better quality
+            audioBitsPerSecond: 128000   // 128 kbps for audio
         } : undefined;
         return new MediaRecorder(stream, options);
     } catch (e) {
@@ -47,14 +48,19 @@ async function startRecording(options = {}) {
         recordedChunks = [];
         isRecording = false;
 
-        // Request screen capture
+        // Request screen capture with system audio
         console.log('Requesting screen capture...');
         const displayStream = await navigator.mediaDevices.getDisplayMedia({
             video: {
                 cursor: options.showCursor ? 'always' : 'never',
                 displaySurface: 'monitor'
             },
-            audio: true // Try to capture system audio
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                sampleRate: 44100,
+                channelCount: 2
+            }
         });
 
         // Set up screen track ended handler
@@ -63,36 +69,66 @@ async function startRecording(options = {}) {
             stopRecording();
         };
 
+        let audioContext;
+        let audioDestination;
+        let audioTracks = [];
+
         // Try to get microphone audio if requested
-        let micStream = null;
         if (options.recordMicrophone) {
             try {
                 console.log('Requesting microphone...');
-                micStream = await navigator.mediaDevices.getUserMedia({
+                const micStream = await navigator.mediaDevices.getUserMedia({
                     audio: {
                         echoCancellation: true,
                         noiseSuppression: true,
-                        sampleRate: 44100
+                        sampleRate: 44100,
+                        channelCount: 2
                     }
                 });
                 console.log('Microphone access granted');
+
+                // Create audio context for mixing
+                audioContext = new AudioContext();
+                audioDestination = audioContext.createMediaStreamDestination();
+
+                // Add system audio if present
+                const systemAudioTrack = displayStream.getAudioTracks()[0];
+                if (systemAudioTrack) {
+                    const systemSource = audioContext.createMediaStreamSource(new MediaStream([systemAudioTrack]));
+                    systemSource.connect(audioDestination);
+                    console.log('Added system audio to mix');
+                }
+
+                // Add microphone audio
+                const micSource = audioContext.createMediaStreamSource(micStream);
+                micSource.connect(audioDestination);
+                console.log('Added microphone audio to mix');
+
+                // Store the mixed audio track
+                audioTracks = audioDestination.stream.getAudioTracks();
+                console.log('Created mixed audio track');
+
             } catch (error) {
                 console.warn('Could not get microphone:', error.name);
-                // Continue without microphone
+                // Continue with system audio only
+                audioTracks = displayStream.getAudioTracks();
             }
+        } else {
+            // Use system audio only
+            audioTracks = displayStream.getAudioTracks();
         }
 
         // Combine all tracks
-        const tracks = [...displayStream.getTracks()];
-        if (micStream) {
-            tracks.push(...micStream.getTracks());
-        }
+        const videoTrack = displayStream.getVideoTracks()[0];
+        const combinedStream = new MediaStream([
+            videoTrack,
+            ...audioTracks
+        ]);
 
-        const combinedStream = new MediaStream(tracks);
         console.log('Streams combined:', {
-            tracks: tracks.length,
-            hasMic: !!micStream,
-            hasSystemAudio: displayStream.getAudioTracks().length > 0
+            video: combinedStream.getVideoTracks().length > 0,
+            audio: combinedStream.getAudioTracks().length > 0,
+            audioTracks: audioTracks.length
         });
 
         // Get supported format
@@ -123,9 +159,14 @@ async function startRecording(options = {}) {
             console.log('Recording stopped');
 
             // Stop all tracks
-            tracks.forEach(track => {
+            combinedStream.getTracks().forEach(track => {
                 track.stop();
             });
+
+            // Clean up audio context if it exists
+            if (audioContext) {
+                await audioContext.close();
+            }
 
             if (recordedChunks.length === 0) {
                 console.error('No data recorded');
