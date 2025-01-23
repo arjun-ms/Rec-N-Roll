@@ -21,15 +21,58 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             sendResponse({ tabId: sender.tab.id });
             break;
             
+        case 'START_RECORDING':
+            try {
+                // Store the tab ID that initiated recording
+                recordingTabId = sender.tab.id;
+                console.log('Starting recording from tab:', recordingTabId);
+                
+                // Forward the start recording message to the recorder tab
+                chrome.tabs.sendMessage(recordingTabId, {
+                    action: 'START_RECORDING',
+                    options: request.options
+                }, response => {
+                    console.log('Recorder response:', response);
+                    sendResponse(response);
+                });
+            } catch (error) {
+                console.error('Error starting recording:', error);
+                sendResponse({ success: false, error: error.message });
+            }
+            return true;
+            
         case 'STORE_RECORDED_BLOB':
             try {
                 if (!request.chunks || !request.type) {
                     throw new Error('Invalid recording data');
                 }
+
+                console.log('Storing recording:', {
+                    chunksLength: request.chunks.length,
+                    type: request.type,
+                    firstChunkLength: request.chunks[0]?.length
+                });
+
+                // Store the chunks as Uint8Arrays
                 recordedBlob = {
-                    buffer: request.chunks[0],
+                    chunks: request.chunks.map(chunk => {
+                        // Verify chunk is array of numbers
+                        if (!Array.isArray(chunk)) {
+                            console.error('Invalid chunk type:', typeof chunk);
+                            throw new Error('Invalid chunk type');
+                        }
+                        // Convert number array back to Uint8Array
+                        return new Uint8Array(chunk);
+                    }),
                     type: request.type
                 };
+
+                console.log('Recording stored successfully:', {
+                    chunks: recordedBlob.chunks.length,
+                    totalSize: recordedBlob.chunks.reduce((sum, chunk) => sum + chunk.length, 0),
+                    type: recordedBlob.type
+                });
+
                 sendResponse({ success: true });
             } catch (error) {
                 console.error('Error storing blob:', error);
@@ -38,63 +81,64 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             return true;
 
         case 'getRecordedBlob':
-            if (recordedBlob) {
-                sendResponse({ 
-                    success: true, 
-                    buffer: recordedBlob.buffer,
+            try {
+                if (!recordedBlob || !recordedBlob.chunks || recordedBlob.chunks.length === 0) {
+                    throw new Error('No recording available');
+                }
+
+                console.log('Retrieving recording:', {
+                    chunks: recordedBlob.chunks.length,
+                    totalSize: recordedBlob.chunks.reduce((sum, chunk) => sum + chunk.length, 0),
                     type: recordedBlob.type
                 });
-            } else {
+
+                // Convert Uint8Arrays to regular arrays for transfer
+                const chunks = recordedBlob.chunks.map(chunk => Array.from(chunk));
+
                 sendResponse({ 
-                    success: false, 
-                    error: 'No recording available' 
+                    success: true, 
+                    chunks: chunks,
+                    type: recordedBlob.type
                 });
+            } catch (error) {
+                console.error('Error retrieving blob:', error);
+                sendResponse({ success: false, error: error.message });
             }
             return true;
 
-        case 'START_RECORDING':
-            // Clear any existing recording when starting new one
+        case 'STOP_RECORDING':
+            try {
+                if (!recordingTabId) {
+                    throw new Error('No active recording tab');
+                }
+                
+                // Forward stop recording message to the recorder tab
+                chrome.tabs.sendMessage(recordingTabId, {
+                    action: 'STOP_RECORDING'
+                }, response => {
+                    console.log('Stop recording response:', response);
+                    sendResponse(response);
+                });
+                
+                recordingTabId = null;
+            } catch (error) {
+                console.error('Error stopping recording:', error);
+                sendResponse({ success: false, error: error.message });
+            }
+            return true;
+
+        case 'CLEAR_RECORDING':
             recordedBlob = null;
             recordingTabId = null;
-            console.log('Cleared existing recording before start');
-            
-            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                const activeTab = tabs[0];
-                if (activeTab) {
-                    chrome.tabs.sendMessage(activeTab.id, {
-                        action: 'START_RECORDING',
-                        options: request.options
-                    }, sendResponse);
-                } else {
-                    sendResponse({ success: false, error: 'No active tab found' });
-                }
-            });
+            console.log('Cleared recording data');
+            sendResponse({ success: true });
             return true;
 
-        case 'STOP_RECORDING':
-            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                const activeTab = tabs[0];
-                if (activeTab) {
-                    chrome.tabs.sendMessage(activeTab.id, {
-                        action: 'STOP_RECORDING'
-                    }, sendResponse);
-                } else {
-                    sendResponse({ success: false, error: 'No active tab found' });
-                }
-            });
-            return true;
-
-        case 'GET_RECORDING_STATUS':
-            chrome.tabs.sendMessage(sender.tab.id, {
-                action: 'GET_RECORDING_STATUS'
-            }, sendResponse);
-            return true;
-            
         default:
-            console.log('Unknown message action:', request.action);
+            console.warn('Unknown action:', request.action);
             sendResponse({ success: false, error: 'Unknown action' });
+            return true;
     }
-    return true;
 });
 
 // Handle extension installation

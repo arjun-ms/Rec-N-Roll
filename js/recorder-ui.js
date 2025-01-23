@@ -1,3 +1,4 @@
+// recorder-ui.js file is responsible for handling the UI interactions and initiating the recording.
 const startBtn = document.getElementById('startBtn');
 const stopBtn = document.getElementById('stopBtn');
 const timer = document.getElementById('timer');

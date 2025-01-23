@@ -2,13 +2,13 @@
   "manifest_version": 3,
   "name": "Screen Recorder",
   "version": "1.0",
-  "description": "Record your screen with audio",
+  "description": "Record your screen and save the video",
   "permissions": [
     "desktopCapture",
     "tabs",
+    "storage",
     "activeTab",
     "scripting",
-    "storage",
     "identity",
     "unlimitedStorage"
   ],
@@ -27,14 +27,25 @@
     "service_worker": "background.js",
     "type": "module"
   },
-  "web_accessible_resources": [{
-    "resources": ["preview.html", "recorder.html", "js/*", "css/*", "images/*"],
-    "matches": ["<all_urls>"]
-  }, {
-    "resources": ["recorder.html", "js/*"],
-    "matches": ["<all_urls>"]
-  }],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["js/recorder.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["preview.html", "recorder.html", "js/*", "css/*", "images/*"],
+      "matches": ["<all_urls>"]
+    },
+    {
+      "resources": ["recorder.html", "js/*"],
+      "matches": ["<all_urls>"]
+    }
+  ],
   "action": {
+    "default_title": "Screen Recorder",
     "default_icon": {
       "16": "images/icon16.png",
       "48": "images/icon48.png",
