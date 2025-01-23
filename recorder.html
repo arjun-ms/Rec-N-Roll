@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Screen Recorder</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+        #startBtn {
+            background-color: #4CAF50;
+            color: white;
+        }
+        #startBtn:hover {
+            background-color: #45a049;
+        }
+        #stopBtn {
+            background-color: #f44336;
+            color: white;
+            display: none;
+        }
+        #stopBtn:hover {
+            background-color: #da190b;
+        }
+        .options {
+            margin-bottom: 20px;
+        }
+        .option {
+            margin-bottom: 10px;
+        }
+        #timer {
+            font-size: 24px;
+            text-align: center;
+            margin: 20px 0;
+            display: none;
+        }
+        .status {
+            text-align: center;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Screen Recorder</h1>
+        
+        <div class="options">
+            <div class="option">
+                <input type="checkbox" id="showCursor" checked>
+                <label for="showCursor">Show cursor in recording</label>
+            </div>
+            <div class="option">
+                <input type="checkbox" id="recordMicrophone">
+                <label for="recordMicrophone">Record microphone audio</label>
+            </div>
+        </div>
+
+        <div id="timer">00:00</div>
+
+        <div class="controls">
+            <button id="startBtn">Start Recording</button>
+            <button id="stopBtn">Stop Recording</button>
+        </div>
+
+        <p class="status" id="status">Click 'Start Recording' to begin</p>
+    </div>
+
+    <script src="js/recorder.js"></script>
+    <script src="js/recorder-ui.js"></script>
+</body>
+</html>

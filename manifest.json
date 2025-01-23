@@ -1,0 +1,52 @@
+{
+  "manifest_version": 3,
+  "name": "Screen Recorder",
+  "version": "1.0",
+  "description": "Record your screen with audio",
+  "permissions": [
+    "desktopCapture",
+    "tabs",
+    "activeTab",
+    "scripting",
+    "storage",
+    "identity",
+    "unlimitedStorage"
+  ],
+  "oauth2": {
+    "client_id": "458223563084-39ouahp8oaervrgg87knnn6at94aljrg.apps.googleusercontent.com",
+    "scopes": ["https://www.googleapis.com/auth/drive.file"]
+  },
+  "key": "jmhgdkihnneooabpkopghomcelemefoh",
+  "host_permissions": [
+    "<all_urls>",
+    "https://www.googleapis.com/*",
+    "https://accounts.google.com/*",
+    "https://oauth2.googleapis.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "web_accessible_resources": [{
+    "resources": ["preview.html", "recorder.html", "js/*", "css/*", "images/*"],
+    "matches": ["<all_urls>"]
+  }, {
+    "resources": ["recorder.html", "js/*"],
+    "matches": ["<all_urls>"]
+  }],
+  "action": {
+    "default_icon": {
+      "16": "images/icon16.png",
+      "48": "images/icon48.png",
+      "128": "images/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "images/icon16.png",
+    "48": "images/icon48.png",
+    "128": "images/icon128.png"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; media-src blob: 'self' data:; worker-src 'self'; frame-src 'self'"
+  }
+}

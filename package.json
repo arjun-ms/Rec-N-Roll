@@ -1,0 +1,17 @@
+{
+  "name": "screen-record-extension",
+  "version": "1.0.0",
+  "description": "Chrome extension for screen recording",
+  "main": "background.js",
+  "dependencies": {
+    "fix-webm-duration": "^1.0.1",
+    "localforage": "^1.10.0"
+  },
+  "devDependencies": {
+    "webpack": "^5.89.0",
+    "webpack-cli": "^5.1.4"
+  },
+  "scripts": {
+    "build": "webpack --mode production"
+  }
+}

@@ -1,0 +1,159 @@
+:root {
+    --primary-color: #4285f4;
+    --danger-color: #ea4335;
+    --success-color: #34a853;
+    --warning-color: #fbbc05;
+    --text-color: #202124;
+    --background-color: #ffffff;
+    --border-color: #dadce0;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    width: 350px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: var(--text-color);
+    background-color: var(--background-color);
+}
+
+.container {
+    padding: 16px;
+}
+
+.header {
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+h1 {
+    font-size: 1.5em;
+    color: var(--primary-color);
+    margin-bottom: 8px;
+}
+
+.recording-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+select, button {
+    width: 100%;
+    padding: 8px 12px;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    font-size: 14px;
+}
+
+.primary-btn {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.primary-btn:hover {
+    background-color: #3367d6;
+}
+
+.danger-btn {
+    background-color: var(--danger-color);
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+
+.danger-btn:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+.audio-controls {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+}
+
+.recording-status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    margin-bottom: 16px;
+}
+
+.recording-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    background-color: var(--danger-color);
+    border-radius: 50%;
+    margin-right: 8px;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+.progress-bar {
+    width: 100%;
+    height: 4px;
+    background-color: var(--border-color);
+    border-radius: 2px;
+    overflow: hidden;
+    margin: 8px 0;
+}
+
+.progress {
+    height: 100%;
+    background-color: var(--primary-color);
+    width: 0%;
+    transition: width 0.3s;
+}
+
+.recording-history {
+    margin-top: 20px;
+}
+
+.recording-history h2 {
+    font-size: 1.1em;
+    margin-bottom: 12px;
+}
+
+#recordingsList {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.recording-item {
+    padding: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.recording-item .share-link {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-size: 0.9em;
+}
+
+#auth-status {
+    font-size: 0.9em;
+    color: #5f6368;
+}
