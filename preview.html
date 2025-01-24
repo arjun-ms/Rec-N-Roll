@@ -107,19 +107,10 @@
             width: 16px;
             height: 16px;
         }
-        .loading-spinner {
-            width: 24px;
-            height: 24px;
-            border: 2px solid #f3f3f3;
-            border-top: 2px solid #3498db;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-right: 10px;
+        .error {
+            color: red;
+            margin-top: 10px;
             display: none;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
@@ -134,6 +125,7 @@
                 </button>
             </div>
             <video id="preview" class="video-player" controls></video>
+            <div id="error" class="error"></div>
         </div>
         <div class="options-container">
             <div class="option-group">
@@ -182,6 +174,8 @@
             </div>
         </div>
     </div>
+    <script src="ffmpeg/ffmpeg.min.js"></script>
+    <script src="ffmpeg/ffmpeg-core.js"></script>
     <script src="js/drive-upload.js"></script>
     <script src="js/preview.js"></script>
 </body>

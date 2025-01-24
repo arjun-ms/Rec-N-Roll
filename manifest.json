@@ -2,15 +2,12 @@
   "manifest_version": 3,
   "name": "Screen Recorder",
   "version": "1.0",
-  "description": "Record your screen and save the video",
+  "description": "Record your screen and save as WebM/MP4/GIF",
   "permissions": [
     "desktopCapture",
     "tabs",
-    "storage",
     "activeTab",
-    "scripting",
-    "identity",
-    "unlimitedStorage"
+    "storage"
   ],
   "oauth2": {
     "client_id": "458223563084-39ouahp8oaervrgg87knnn6at94aljrg.apps.googleusercontent.com",
@@ -21,7 +18,8 @@
     "<all_urls>",
     "https://www.googleapis.com/*",
     "https://accounts.google.com/*",
-    "https://oauth2.googleapis.com/*"
+    "https://oauth2.googleapis.com/*",
+    "https://*.ffmpegwasm.netlify.app/*"
   ],
   "background": {
     "service_worker": "background.js",
@@ -36,11 +34,13 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["preview.html", "recorder.html", "js/*", "css/*", "images/*"],
-      "matches": ["<all_urls>"]
-    },
-    {
-      "resources": ["recorder.html", "js/*"],
+      "resources": [
+        "lib/*",
+        "ffmpeg/*",
+        "preview.html",
+        "js/*",
+        "images/*"
+      ],
       "matches": ["<all_urls>"]
     }
   ],
@@ -58,6 +58,6 @@
     "128": "images/icon128.png"
   },
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; media-src blob: 'self' data:; worker-src 'self'; frame-src 'self'"
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; object-src 'self'; media-src 'self' blob: data:; connect-src 'self' blob: data:"
   }
 }

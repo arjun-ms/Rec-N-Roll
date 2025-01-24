@@ -115,6 +115,367 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    async function convertToMp4(sourceBlob) {
+        return new Promise((resolve, reject) => {
+            const videoEl = document.createElement('video');
+            videoEl.style.display = 'none';
+            document.body.appendChild(videoEl);
+
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const chunks = [];
+
+            videoEl.onloadedmetadata = () => {
+                canvas.width = videoEl.videoWidth;
+                canvas.height = videoEl.videoHeight;
+
+                const stream = canvas.captureStream(30); // 30 FPS
+
+                // Add audio track if present in the video element
+                const audioTracks = videoEl.captureStream().getAudioTracks();
+                if (audioTracks.length > 0) {
+                    audioTracks.forEach(track => stream.addTrack(track));
+                }
+
+                const options = {
+                    mimeType: 'video/webm;codecs=h264',
+                    videoBitsPerSecond: 2500000,
+                    audioBitsPerSecond: 128000
+                };
+
+                let mediaRecorder;
+                try {
+                    mediaRecorder = new MediaRecorder(stream, options);
+                } catch (e) {
+                    cleanup();
+                    reject(new Error('MP4 conversion not supported in this browser'));
+                    return;
+                }
+
+                mediaRecorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) chunks.push(e.data);
+                };
+
+                mediaRecorder.onstop = () => {
+                    const finalBlob = new Blob(chunks, { type: 'video/mp4' });
+                    cleanup();
+                    resolve(finalBlob);
+                };
+
+                // Start recording and playing
+                mediaRecorder.start(1000);
+                videoEl.play();
+
+                function drawFrame() {
+                    if (videoEl.ended || videoEl.paused) {
+                        mediaRecorder.stop();
+                        return;
+                    }
+                    ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+                    requestAnimationFrame(drawFrame);
+                }
+
+                drawFrame();
+            };
+
+            function cleanup() {
+                videoEl.remove();
+                canvas.remove();
+            }
+
+            videoEl.src = URL.createObjectURL(sourceBlob);
+        });
+    }
+
+    async function extractFrames(videoBlob, fps = 10) {
+        console.log('Extracting frames from video');
+        const video = document.createElement('video');
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        
+        return new Promise(async (resolve, reject) => {
+            try {
+                // Create object URL for video blob
+                const videoUrl = URL.createObjectURL(videoBlob);
+                
+                video.addEventListener('loadedmetadata', () => {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    video.currentTime = 0;
+                });
+
+                video.addEventListener('error', (e) => {
+                    reject(new Error('Error loading video: ' + e.message));
+                });
+
+                const frames = [];
+                const interval = 1000 / fps;
+
+                video.addEventListener('seeked', async function handler() {
+                    if (video.currentTime < video.duration) {
+                        ctx.drawImage(video, 0, 0);
+                        frames.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+                        video.currentTime += interval / 1000;
+                    } else {
+                        video.removeEventListener('seeked', handler);
+                        URL.revokeObjectURL(videoUrl);
+                        console.log(`Extracted ${frames.length} frames`);
+                        resolve({ frames, width: canvas.width, height: canvas.height });
+                    }
+                });
+
+                video.src = videoUrl;
+            } catch (error) {
+                reject(error);
+            }
+        });
+    }
+
+    async function createGif(frames, width, height, fps = 10) {
+        console.log('Creating GIF');
+        return new Promise((resolve, reject) => {
+            const gif = new GIF({
+                workers: 2,
+                quality: 10,
+                width: width,
+                height: height,
+                workerScript: chrome.runtime.getURL('lib/gif.worker.js')
+            });
+
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = width;
+            tempCanvas.height = height;
+            const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
+
+            frames.forEach(frame => {
+                tempCtx.putImageData(frame, 0, 0);
+                gif.addFrame(tempCanvas, { delay: 1000 / fps });
+            });
+
+            gif.on('progress', p => console.log('GIF Progress:', Math.round(p * 100) + '%'));
+            
+            gif.on('finished', blob => {
+                console.log('GIF creation finished');
+                resolve(blob);
+            });
+
+            gif.on('error', error => {
+                console.error('GIF creation error:', error);
+                reject(error);
+            });
+
+            gif.render();
+        });
+    }
+
+    // Load FFmpeg
+    let ffmpeg = null;
+    async function loadFFmpeg() {
+        if (ffmpeg) return ffmpeg;
+        
+        try {
+            // Check if FFmpeg is available
+            if (typeof FFmpeg === 'undefined') {
+                throw new Error('FFmpeg library not loaded. Please check your internet connection and try again.');
+            }
+
+            const { createFFmpeg } = FFmpeg;
+            console.log('Creating FFmpeg instance...');
+            
+            ffmpeg = createFFmpeg({
+                log: true,
+                logger: ({ message }) => console.log('FFmpeg Log:', message),
+                corePath: chrome.runtime.getURL('ffmpeg/ffmpeg-core.js'),
+                wasmPath: chrome.runtime.getURL('ffmpeg/ffmpeg-core.wasm'),
+                workerPath: chrome.runtime.getURL('ffmpeg/ffmpeg-core.worker.js'),
+                progress: (progress) => {
+                    console.log('FFmpeg Progress:', progress);
+                }
+            });
+            
+            console.log('Loading FFmpeg...');
+            await ffmpeg.load();
+            console.log('FFmpeg loaded successfully');
+            
+            return ffmpeg;
+        } catch (error) {
+            console.error('Failed to load FFmpeg:', error);
+            throw new Error('Failed to initialize video converter: ' + error.message);
+        }
+    }
+
+    async function convertToGif(recordingBlob, progressCallback) {
+        try {
+            console.log('Starting GIF conversion process');
+            progressCallback('Loading FFmpeg...');
+            
+            // Load FFmpeg
+            const ffmpeg = await loadFFmpeg();
+            progressCallback('Converting video...');
+            
+            // Convert blob to array buffer
+            const videoData = await recordingBlob.arrayBuffer();
+            
+            // Write the input file
+            ffmpeg.FS('writeFile', 'input.webm', new Uint8Array(videoData));
+            progressCallback('Creating GIF...');
+            
+            // Run FFmpeg command with simpler settings
+            await ffmpeg.run(
+                '-i', 'input.webm',
+                '-vf', 'fps=10,scale=480:-1',
+                '-f', 'gif',
+                'output.gif'
+            );
+            
+            progressCallback('Finalizing...');
+            
+            // Read the output file
+            const gifData = ffmpeg.FS('readFile', 'output.gif');
+            
+            // Clean up
+            ffmpeg.FS('unlink', 'input.webm');
+            ffmpeg.FS('unlink', 'output.gif');
+            
+            // Create blob
+            const gifBlob = new Blob([gifData.buffer], { type: 'image/gif' });
+            console.log('GIF conversion successful');
+            
+            return gifBlob;
+        } catch (error) {
+            console.error('Error in GIF conversion:', error);
+            throw error;
+        }
+    }
+
+    async function setupDownloadButtons() {
+        try {
+            const downloadMp4 = document.getElementById('downloadMp4');
+            const downloadWebm = document.getElementById('downloadWebm');
+            const downloadGif = document.getElementById('downloadGif');
+            const preview = document.getElementById('preview');
+            const timestamp = new Date().getTime();
+
+            if (downloadMp4) {
+                downloadMp4.onclick = async () => {
+                    const description = downloadMp4.querySelector('.description');
+                    const originalDescription = description.textContent;
+                    downloadMp4.style.opacity = '0.5';
+                    description.textContent = 'Converting to MP4...';
+                    
+                    try {
+                        const mp4Blob = await convertToMp4(recordingBlob);
+                        await downloadBlob(mp4Blob, `recording-${timestamp}.mp4`);
+                    } catch (error) {
+                        console.error('MP4 conversion failed:', error);
+                        showError('Failed to convert to MP4: ' + error.message);
+                    } finally {
+                        downloadMp4.style.opacity = '1';
+                        description.textContent = originalDescription;
+                    }
+                };
+            }
+
+            if (downloadWebm) {
+                downloadWebm.onclick = async () => {
+                    const description = downloadWebm.querySelector('.description');
+                    const originalDescription = description.textContent;
+                    downloadWebm.style.opacity = '0.5';
+                    description.textContent = 'Downloading...';
+                    
+                    try {
+                        await downloadBlob(recordingBlob, `recording-${timestamp}.webm`);
+                    } catch (error) {
+                        showError('Failed to download WebM: ' + error.message);
+                    } finally {
+                        downloadWebm.style.opacity = '1';
+                        description.textContent = originalDescription;
+                    }
+                };
+            }
+
+            if (downloadGif) {
+                downloadGif.onclick = async () => {
+                    const description = downloadGif.querySelector('.description');
+                    const originalDescription = description.textContent;
+                    
+                    try {
+                        // Update UI to show progress
+                        downloadGif.style.opacity = '0.5';
+                        description.textContent = 'Initializing converter...';
+                        
+                        // Convert and download
+                        const gifBlob = await convertToGif(recordingBlob, (status) => {
+                            description.textContent = status;
+                        });
+                        
+                        if (!gifBlob) {
+                            throw new Error('GIF conversion failed - no blob received');
+                        }
+                        
+                        description.textContent = 'Downloading GIF...';
+                        await downloadBlob(gifBlob, `recording-${timestamp}.gif`);
+                    } catch (error) {
+                        console.error('GIF conversion/download failed:', error);
+                        showError('Failed to convert/download GIF: ' + error.message);
+                    } finally {
+                        // Restore UI
+                        downloadGif.style.opacity = '1';
+                        description.textContent = originalDescription;
+                    }
+                };
+            }
+
+            if (preview && recordingBlob) {
+                preview.src = URL.createObjectURL(recordingBlob);
+            }
+        } catch (error) {
+            console.error('Error setting up download buttons:', error);
+            showError('Failed to setup download options: ' + error.message);
+        }
+    }
+
+    function downloadBlob(blob, filename) {
+        return new Promise((resolve, reject) => {
+            try {
+                console.log('Starting download:', { 
+                    filename, 
+                    blobSize: blob.size, 
+                    type: blob.type 
+                });
+
+                // Ensure we have a valid blob
+                if (!(blob instanceof Blob)) {
+                    throw new Error('Invalid blob object');
+                }
+
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+
+                // Use timeout to ensure browser has time to process
+                setTimeout(() => {
+                    console.log('Triggering download...');
+                    a.click();
+                    
+                    // Cleanup after small delay
+                    setTimeout(() => {
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                        console.log('Download cleanup complete');
+                        resolve();
+                    }, 1000);
+                }, 100);
+            } catch (error) {
+                console.error('Download failed:', error);
+                reject(error);
+            }
+        });
+    }
+
     try {
         // Get recorded data
         const response = await new Promise((resolve) => {
@@ -151,22 +512,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // Create blob with original type
-        const videoBlob = new Blob(chunks, { 
+        recordingBlob = new Blob(chunks, { 
             type: response.type || 'video/webm' 
         });
 
         console.log('📦 Created video blob:', {
-            size: videoBlob.size,
-            type: videoBlob.type
+            size: recordingBlob.size,
+            type: recordingBlob.type
         });
 
-        if (videoBlob.size === 0) {
+        if (recordingBlob.size === 0) {
             throw new Error('Empty video data');
         }
 
         // Test playback with original format
-        console.log('🎥 Testing original format:', videoBlob.type);
-        const originalWorks = await testVideoPlayback(videoBlob);
+        console.log('🎥 Testing original format:', recordingBlob.type);
+        const originalWorks = await testVideoPlayback(recordingBlob);
 
         if (!originalWorks) {
             console.log('⚠️ Original format failed, trying alternatives...');
@@ -194,11 +555,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!worked) {
                 throw new Error('No supported video format found');
             }
-        } else {
-            recordingBlob = videoBlob;
         }
 
-        // Convert final blob to data URL for video element
+        // Convert blob to data URL for video element
         const videoDataUrl = await blobToBase64(recordingBlob);
         console.log('🎥 Created data URL, length:', videoDataUrl.length);
 
@@ -207,11 +566,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         video.controls = true;
         console.log('✅ Video loaded successfully');
 
+        // Set up download buttons
+        await setupDownloadButtons();
+
         // Show download button
         const downloadBtn = document.getElementById('downloadBtn');
         if (downloadBtn) {
             downloadBtn.style.display = 'inline-block';
-            downloadBtn.onclick = () => {
+            downloadBtn.onclick = async () => {
                 const url = URL.createObjectURL(recordingBlob);
                 const a = document.createElement('a');
                 a.href = url;
