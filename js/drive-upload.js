@@ -5,24 +5,30 @@ class DriveUploader {
 
     async authenticate() {
         try {
+            console.log('Starting authentication...');
             return new Promise((resolve, reject) => {
-                chrome.identity.getAuthToken({ 
-                    interactive: true,
-                    scopes: ['https://www.googleapis.com/auth/drive.file']
-                }, (token) => {
+                chrome.runtime.sendMessage({ action: 'getAuthToken' }, (response) => {
                     if (chrome.runtime.lastError) {
-                        console.error('Auth error:', chrome.runtime.lastError);
+                        console.error('Message error:', chrome.runtime.lastError);
                         reject(chrome.runtime.lastError);
                         return;
                     }
-                    
-                    if (!token) {
+
+                    if (response.error) {
+                        console.error('Auth error:', response.error);
+                        reject(response.error);
+                        return;
+                    }
+
+                    if (!response.token) {
+                        console.error('No token received');
                         reject(new Error('Failed to get auth token'));
                         return;
                     }
 
-                    this.tokenDetails = { token };
-                    resolve(token);
+                    console.log('Successfully received auth token');
+                    this.tokenDetails = { token: response.token };
+                    resolve(response.token);
                 });
             });
         } catch (error) {
@@ -33,6 +39,7 @@ class DriveUploader {
 
     async uploadToDrive(blob, filename = `screen-recording-${Date.now()}.webm`) {
         try {
+            console.log('Starting upload process...');
             const token = await this.authenticate();
             console.log('Authentication successful, proceeding with upload');
 
@@ -113,8 +120,11 @@ class DriveUploader {
         if (!this.tokenDetails?.token) return;
         
         return new Promise((resolve) => {
-            chrome.identity.removeCachedAuthToken(
-                { token: this.tokenDetails.token },
+            chrome.runtime.sendMessage(
+                { 
+                    action: 'removeCachedToken', 
+                    token: this.tokenDetails.token 
+                },
                 () => {
                     this.tokenDetails = null;
                     resolve();
@@ -124,5 +134,5 @@ class DriveUploader {
     }
 }
 
-// Create uploader instance
-const driveUploader = new DriveUploader();
+// Create uploader instance and make it globally available
+window.driveUploader = new DriveUploader();

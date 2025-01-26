@@ -7,7 +7,8 @@
     "desktopCapture",
     "tabs",
     "activeTab",
-    "storage"
+    "storage",
+    "identity"
   ],
   "oauth2": {
     "client_id": "458223563084-39ouahp8oaervrgg87knnn6at94aljrg.apps.googleusercontent.com",

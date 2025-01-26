@@ -13,10 +13,31 @@ chrome.action.onClicked.addListener(async (tab) => {
 let recordedBlob = null;
 let recordingTabId = null;
 
+// Listen for messages
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     console.log('Background script received message:', request.action);
     
     switch (request.action) {
+        case 'getAuthToken':
+            chrome.identity.getAuthToken({ interactive: true }, (token) => {
+                if (chrome.runtime.lastError) {
+                    console.error('Auth error:', chrome.runtime.lastError);
+                    sendResponse({ error: chrome.runtime.lastError.message });
+                    return;
+                }
+                sendResponse({ token });
+            });
+            return true; // Required for async response
+
+        case 'removeCachedToken':
+            if (request.token) {
+                chrome.identity.removeCachedAuthToken({ token: request.token }, () => {
+                    sendResponse({ success: true });
+                });
+                return true; // Required for async response
+            }
+            break;
+
         case 'GET_TAB_ID':
             sendResponse({ tabId: sender.tab.id });
             break;

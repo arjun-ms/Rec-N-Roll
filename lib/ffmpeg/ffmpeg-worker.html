@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FFmpeg Worker</title>
+    <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin">
+    <meta http-equiv="Cross-Origin-Embedder-Policy" content="require-corp">
+    <script>
+        // Verify SharedArrayBuffer availability
+        window.addEventListener('load', () => {
+            try {
+                if (typeof SharedArrayBuffer === 'undefined') {
+                    throw new Error('SharedArrayBuffer is not available');
+                }
+                console.log('SharedArrayBuffer is available');
+            } catch (error) {
+                console.error('SharedArrayBuffer check failed:', error);
+                window.parent.postMessage({ 
+                    type: 'error', 
+                    message: 'SharedArrayBuffer is not available: ' + error.message 
+                }, '*');
+            }
+        });
+    </script>
+</head>
+<body>
+    <script>
+        // Load FFmpeg scripts dynamically
+        async function loadScripts() {
+            const scripts = [
+                'ffmpeg.min.js',
+                'ffmpeg-core.js',
+                'ffmpeg-worker.js'
+            ];
+            
+            for (const script of scripts) {
+                console.log('Loading script:', script);
+                try {
+                    await new Promise((resolve, reject) => {
+                        const scriptEl = document.createElement('script');
+                        scriptEl.src = script;
+                        scriptEl.onload = () => {
+                            console.log('Loaded script:', script);
+                            resolve();
+                        };
+                        scriptEl.onerror = (error) => {
+                            console.error('Failed to load script:', script, error);
+                            reject(new Error(`Failed to load ${script}`));
+                        };
+                        document.body.appendChild(scriptEl);
+                    });
+                } catch (error) {
+                    console.error('Script loading error:', error);
+                    window.parent.postMessage({ 
+                        type: 'error', 
+                        message: error.message 
+                    }, '*');
+                    throw error;
+                }
+            }
+            console.log('All scripts loaded successfully');
+        }
+        
+        console.log('Starting script loading sequence...');
+        loadScripts().catch(error => {
+            console.error('Failed to load scripts:', error);
+            window.parent.postMessage({ 
+                type: 'error', 
+                message: 'Failed to load FFmpeg scripts: ' + error.message 
+            }, '*');
+        });
+    </script>
+</body>
+</html>
