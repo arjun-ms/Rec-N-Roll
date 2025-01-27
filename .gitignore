@@ -3,3 +3,5 @@ build
 dist    
 download-ffmpeg.js
 ffmpeg/*
+privatekey.pem
+publickey.pem

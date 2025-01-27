@@ -7,13 +7,20 @@
     "desktopCapture",
     "tabs",
     "activeTab",
-    "storage"
+    "storage",
+    "identity"
   ],
   "oauth2": {
-    "client_id": "458223563084-39ouahp8oaervrgg87knnn6at94aljrg.apps.googleusercontent.com",
+    "client_id": "458223563084-m84tb5hurohqq2j0vchdqas5dkm37sq2.apps.googleusercontent.com",
     "scopes": ["https://www.googleapis.com/auth/drive.file"]
   },
-  "key": "jmhgdkihnneooabpkopghomcelemefoh",
+  "externally_connectable": {
+    "matches": [
+      "https://*.google.com/*",
+      "https://*.googleapis.com/*"
+    ]
+  },
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAhR5LVuZxqtUzD2QFBJ+JKRp8JIZRwvJU+LJut1H+oEXqTT2N8jWCkEtxngvUXKNv4R9kCYw7HE9OtBPD3GUNEGcQQE+8VZPPJpJtVKRKnKJ+AQZyDH9s+k4V7wPGaJc1LH7HYDYEwAaS7UDJrFZ7Hj5WzGTxoLI4XKtcGvEgk0QyUZLZRJQKKzUYLZHhWgAqNcaJvKRIukZhX9iqFIRvUL7o8SCS6JdQE7wKEwEFUXyFvFNHKjgFxGKKVX9vvgMYHVSfgMwFGGXyHqcYyXVKcbHXQlGRgxXMN1GZyBQnX9Y5TQhxdEBYNVTvY9QC+4KyBKhVOZCVvE+5qYCxZCGTIQIDAQAB",
   "host_permissions": [
     "<all_urls>",
     "https://www.googleapis.com/*",
@@ -58,6 +65,6 @@
     "128": "images/icon128.png"
   },
   "content_security_policy": {
-    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; object-src 'self'; media-src 'self' blob: data:; connect-src 'self' blob: data:"
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://*.googleapis.com https://accounts.google.com https://oauth2.googleapis.com wss://*.google.com"
   }
 }

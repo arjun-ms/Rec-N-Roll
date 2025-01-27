@@ -13,10 +13,29 @@ chrome.action.onClicked.addListener(async (tab) => {
 let recordedBlob = null;
 let recordingTabId = null;
 
+// Listen for messages
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     console.log('Background script received message:', request.action);
     
     switch (request.action) {
+        case 'getAuthToken':
+            getAuthToken(true).then((token) => {
+                sendResponse({ token });
+            }).catch((error) => {
+                console.error('Auth error:', error);
+                sendResponse({ error: error.message });
+            });
+            return true; // Required for async response
+
+        case 'removeCachedToken':
+            if (request.token) {
+                chrome.identity.removeCachedAuthToken({ token: request.token }, () => {
+                    sendResponse({ success: true });
+                });
+                return true; // Required for async response
+            }
+            break;
+
         case 'GET_TAB_ID':
             sendResponse({ tabId: sender.tab.id });
             break;
@@ -134,6 +153,25 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             sendResponse({ success: true });
             return true;
 
+        case 'UPLOAD_TO_DRIVE':
+            try {
+                if (!request.filename || !recordedBlob) {
+                    throw new Error('Invalid upload data');
+                }
+
+                const blob = new Blob(recordedBlob.chunks, { type: recordedBlob.type });
+                uploadToDrive(blob, request.filename).then((result) => {
+                    sendResponse({ success: true, result });
+                }).catch((error) => {
+                    console.error('Upload error:', error);
+                    sendResponse({ success: false, error: error.message });
+                });
+            } catch (error) {
+                console.error('Error preparing upload:', error);
+                sendResponse({ success: false, error: error.message });
+            }
+            return true;
+
         default:
             console.warn('Unknown action:', request.action);
             sendResponse({ success: false, error: 'Unknown action' });
@@ -162,23 +200,62 @@ function isBraveBrowser() {
 
 async function getAuthToken(interactive = true) {
     return new Promise((resolve, reject) => {
-        console.log('Getting auth token, interactive:', interactive);
-        chrome.identity.getAuthToken({ interactive }, (token) => {
-            const lastError = chrome.runtime.lastError;
-            if (lastError) {
-                console.error('Auth error:', lastError);
-                reject(lastError);
+        chrome.identity.getAuthToken({ interactive: interactive }, function (token) {
+            if (chrome.runtime.lastError) {
+                console.error('Auth error:', chrome.runtime.lastError);
+                // If token was revoked, remove it and retry
+                if (chrome.runtime.lastError.message.includes('revoked')) {
+                    chrome.identity.removeCachedAuthToken({ token: token }, () => {
+                        getAuthToken(interactive).then(resolve).catch(reject);
+                    });
+                    return;
+                }
+                reject(chrome.runtime.lastError);
                 return;
             }
-
-            if (!token) {
+            if (token) {
+                console.log('Successfully obtained auth token');
+                resolve(token);
+            } else {
                 console.error('No token received');
                 reject(new Error('Failed to get auth token'));
-                return;
             }
-
-            console.log('Successfully obtained auth token');
-            resolve(token);
         });
     });
+}
+
+async function uploadToDrive(blob, filename) {
+    try {
+        const token = await getAuthToken(true);
+        
+        // Create multipart form data
+        const metadata = {
+            name: filename,
+            mimeType: blob.type
+        };
+        
+        const form = new FormData();
+        form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+        form.append('file', blob);
+
+        // Upload to Drive
+        const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + token
+            },
+            body: form
+        });
+
+        if (!response.ok) {
+            throw new Error('Upload failed: ' + response.statusText);
+        }
+
+        const result = await response.json();
+        console.log('File uploaded successfully:', result);
+        return result;
+    } catch (error) {
+        console.error('Upload error:', error);
+        throw error;
+    }
 }

@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const saveGoogleDriveBtn = document.getElementById('saveGoogleDrive');
     const shareButton = document.getElementById('shareButton');
     let recordingBlob = null;
+    let driveUploader = null;  
 
     shareButton.style.display = 'none';
 
@@ -395,34 +396,39 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             if (downloadGif) {
-                downloadGif.onclick = async () => {
-                    const description = downloadGif.querySelector('.description');
-                    const originalDescription = description.textContent;
+                // ! START HERE Commented out as GIF download is not working properly
+                // downloadGif.onclick = async () => {
+                //     const description = downloadGif.querySelector('.description');
+                //     const originalDescription = description.textContent;
                     
-                    try {
-                        // Update UI to show progress
-                        downloadGif.style.opacity = '0.5';
-                        description.textContent = 'Initializing converter...';
+                //     try {
+                //         // Update UI to show progress
+                //         downloadGif.style.opacity = '0.5';
+                //         description.textContent = 'Initializing converter...';
                         
-                        // Convert and download
-                        const gifBlob = await convertToGif(recordingBlob, (status) => {
-                            description.textContent = status;
-                        });
+                //         // Convert and download
+                //         const gifBlob = await convertToGif(recordingBlob, (status) => {
+                //             description.textContent = status;
+                //         });
                         
-                        if (!gifBlob) {
-                            throw new Error('GIF conversion failed - no blob received');
-                        }
+                //         if (!gifBlob) {
+                //             throw new Error('GIF conversion failed - no blob received');
+                //         }
                         
-                        description.textContent = 'Downloading GIF...';
-                        await downloadBlob(gifBlob, `recording-${timestamp}.gif`);
-                    } catch (error) {
-                        console.error('GIF conversion/download failed:', error);
-                        showError('Failed to convert/download GIF: ' + error.message);
-                    } finally {
-                        // Restore UI
-                        downloadGif.style.opacity = '1';
-                        description.textContent = originalDescription;
-                    }
+                //         description.textContent = 'Downloading GIF...';
+                //         await downloadBlob(gifBlob, `recording-${timestamp}.gif`);
+                //     } catch (error) {
+                //         console.error('GIF conversion/download failed:', error);
+                //         showError('Failed to convert/download GIF: ' + error.message);
+                //     } finally {
+                //         // Restore UI
+                //         downloadGif.style.opacity = '1';
+                //         description.textContent = originalDescription;
+                //     }
+                // };
+                // ! UNTIL THIS Commented out as GIF download is not working properly (uncomment then try to fix the solution when needed)
+                downloadGif.onclick = () => {
+                    alert('GIF Downloading Coming Soon...');
                 };
             }
 
@@ -587,12 +593,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (saveGoogleDriveBtn) {
             saveGoogleDriveBtn.addEventListener('click', async () => {
                 try {
+                    if (!window.driveUploader) {
+                        throw new Error('DriveUploader not initialized. Please refresh the page and try again.');
+                    }
+
                     saveGoogleDriveBtn.disabled = true;
                     const spinner = saveGoogleDriveBtn.querySelector('.loading-spinner');
                     if (spinner) spinner.style.display = 'inline-block';
                     
-                    await driveUploader.authenticate();
-                    const result = await driveUploader.uploadToDrive(recordingBlob);
+                    console.log('Starting Google Drive upload process...');
+                    await window.driveUploader.authenticate();
+                    console.log('Authentication successful, uploading file...');
+                    const result = await window.driveUploader.uploadToDrive(recordingBlob);
                     
                     if (result?.webViewLink) {
                         shareButton.onclick = () => window.open(result.webViewLink, '_blank');
@@ -601,7 +613,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     
                     alert('Successfully uploaded to Google Drive!');
                 } catch (error) {
-                    showError('Upload failed: ' + error.message);
+                    console.error('Drive upload error:', error);
+                    showError('Upload failed: ' + (error.message || 'Unknown error occurred'));
                 } finally {
                     saveGoogleDriveBtn.disabled = false;
                     const spinner = saveGoogleDriveBtn.querySelector('.loading-spinner');
