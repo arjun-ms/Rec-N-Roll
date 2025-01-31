@@ -19,20 +19,23 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     
     switch (request.action) {
         case 'getAuthToken':
-            getAuthToken(true).then((token) => {
-                sendResponse({ token });
-            }).catch((error) => {
-                console.error('Auth error:', error);
-                sendResponse({ error: error.message });
-            });
-            return true; // Required for async response
+            getAuthToken(true)
+                .then(token => {
+                    sendResponse({ token });
+                    console.log('SUCCESS - Got auth token:', token);
+                })
+                .catch(error => {
+                    console.error('Auth error:', error);
+                    sendResponse({ error: error.message });
+                });
+            return true; // Will respond asynchronously
 
         case 'removeCachedToken':
             if (request.token) {
                 chrome.identity.removeCachedAuthToken({ token: request.token }, () => {
                     sendResponse({ success: true });
                 });
-                return true; // Required for async response
+                return true; // Will respond asynchronously
             }
             break;
 
@@ -200,55 +203,81 @@ function isBraveBrowser() {
 
 async function getAuthToken(interactive = true) {
     return new Promise((resolve, reject) => {
-        chrome.identity.getAuthToken({ interactive: interactive }, function (token) {
-            if (chrome.runtime.lastError) {
-                console.error('Auth error:', chrome.runtime.lastError);
-                // If token was revoked, remove it and retry
-                if (chrome.runtime.lastError.message.includes('revoked')) {
-                    chrome.identity.removeCachedAuthToken({ token: token }, () => {
-                        getAuthToken(interactive).then(resolve).catch(reject);
-                    });
+        try {
+            const manifest = chrome.runtime.getManifest();
+            const clientId = manifest.oauth2.client_id;
+            
+            chrome.identity.getAuthToken({ 
+                interactive: interactive,
+                scopes: ['https://www.googleapis.com/auth/drive.file']
+            }, (token) => {
+                if (chrome.runtime.lastError) {
+                    console.error('Auth error:', chrome.runtime.lastError);
+                    // If token was revoked, try to remove it and authenticate again
+                    if (chrome.runtime.lastError.message.includes('revoked') || 
+                        chrome.runtime.lastError.message.includes('not granted')) {
+                        chrome.identity.removeCachedAuthToken({ token }, () => {
+                            // Retry auth after removing cached token
+                            chrome.identity.getAuthToken({ 
+                                interactive: true,
+                                scopes: ['https://www.googleapis.com/auth/drive.file']
+                            }, (newToken) => {
+                                if (chrome.runtime.lastError) {
+                                    reject(chrome.runtime.lastError);
+                                    return;
+                                }
+                                console.log('SUCCESS - Got new auth token:', newToken);
+                                resolve(newToken);
+                            });
+                        });
+                        return;
+                    }
+                    reject(chrome.runtime.lastError);
                     return;
                 }
-                reject(chrome.runtime.lastError);
-                return;
-            }
-            if (token) {
-                console.log('Successfully obtained auth token');
+
+                if (!token) {
+                    reject(new Error('No token received'));
+                    return;
+                }
+
+                console.log('SUCCESS - Got auth token:', token);
                 resolve(token);
-            } else {
-                console.error('No token received');
-                reject(new Error('Failed to get auth token'));
-            }
-        });
+            });
+        } catch (error) {
+            console.error('Error in getAuthToken:', error);
+            reject(error);
+        }
     });
 }
 
 async function uploadToDrive(blob, filename) {
     try {
         const token = await getAuthToken(true);
-        
-        // Create multipart form data
+        console.log('Got auth token for upload');
+
         const metadata = {
             name: filename,
             mimeType: blob.type
         };
-        
+
         const form = new FormData();
         form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
         form.append('file', blob);
 
-        // Upload to Drive
+        console.log('Uploading to Drive...');
         const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
             method: 'POST',
             headers: {
-                'Authorization': 'Bearer ' + token
+                'Authorization': `Bearer ${token}`
             },
             body: form
         });
 
         if (!response.ok) {
-            throw new Error('Upload failed: ' + response.statusText);
+            const errorText = await response.text();
+            console.error('Upload failed:', response.status, errorText);
+            throw new Error(`Upload failed: ${response.status} ${errorText}`);
         }
 
         const result = await response.json();
