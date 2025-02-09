@@ -588,34 +588,36 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Set up Google Drive upload
         if (saveGoogleDriveBtn) {
             saveGoogleDriveBtn.addEventListener('click', async () => {
-                try {
-                    if (!window.driveUploader) {
-                        throw new Error('DriveUploader not initialized. Please refresh the page and try again.');
-                    }
+                alert('Please use Save to Supabase option as of now... Google Drive Upload Coming Soon...');
+                return;
+                // try {
+                //     if (!window.driveUploader) {
+                //         throw new Error('DriveUploader not initialized. Please refresh the page and try again.');
+                //     }
 
-                    saveGoogleDriveBtn.disabled = true;
-                    const spinner = saveGoogleDriveBtn.querySelector('.loading-spinner');
-                    if (spinner) spinner.style.display = 'inline-block';
+                //     saveGoogleDriveBtn.disabled = true;
+                //     const spinner = saveGoogleDriveBtn.querySelector('.loading-spinner');
+                //     if (spinner) spinner.style.display = 'inline-block';
                     
-                    console.log('Starting Google Drive upload process...');
-                    await window.driveUploader.authenticate();
-                    console.log('Authentication successful, uploading file...');
-                    const result = await window.driveUploader.uploadToDrive(recordingBlob);
+                //     console.log('Starting Google Drive upload process...');
+                //     await window.driveUploader.authenticate();
+                //     console.log('Authentication successful, uploading file...');
+                //     const result = await window.driveUploader.uploadToDrive(recordingBlob);
                     
-                    if (result?.webViewLink) {
-                        shareButton.onclick = () => window.open(result.webViewLink, '_blank');
-                        shareButton.style.display = 'flex';
-                    }
+                //     if (result?.webViewLink) {
+                //         shareButton.onclick = () => window.open(result.webViewLink, '_blank');
+                //         shareButton.style.display = 'flex';
+                //     }
                     
-                    alert('Successfully uploaded to Google Drive!');
-                } catch (error) {
-                    console.error('Drive upload error:', error);
-                    showError('Upload failed: ' + (error.message || 'Unknown error occurred'));
-                } finally {
-                    saveGoogleDriveBtn.disabled = false;
-                    const spinner = saveGoogleDriveBtn.querySelector('.loading-spinner');
-                    if (spinner) spinner.style.display = 'none';
-                }
+                //     alert('Successfully uploaded to Google Drive!');
+                // } catch (error) {
+                //     console.error('Drive upload error:', error);
+                //     showError('Upload failed: ' + (error.message || 'Unknown error occurred'));
+                // } finally {
+                //     saveGoogleDriveBtn.disabled = false;
+                //     const spinner = saveGoogleDriveBtn.querySelector('.loading-spinner');
+                //     if (spinner) spinner.style.display = 'none';
+                // }
             });
         }
 
