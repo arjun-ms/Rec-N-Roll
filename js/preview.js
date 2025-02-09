@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', async () => {
     const video = document.getElementById('preview');
     const saveGoogleDriveBtn = document.getElementById('saveGoogleDrive');
+    const saveSupabaseBtn = document.getElementById('saveSupabase');
     const shareButton = document.getElementById('shareButton');
     let recordingBlob = null;
     let driveUploader = null;  
@@ -484,59 +485,63 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     try {
         // Get recorded data
-        const response = await new Promise((resolve) => {
-            chrome.runtime.sendMessage({ action: 'getRecordedBlob' }, resolve);
+        const blobData = await new Promise((resolve, reject) => {
+            chrome.runtime.sendMessage({ action: 'getRecordedBlob' }, (response) => {
+                console.log('Got response:', response);
+                if (chrome.runtime.lastError) {
+                    reject(new Error(chrome.runtime.lastError.message));
+                    return;
+                }
+                if (!response || !response.data) {
+                    reject(new Error('No recording data received'));
+                    return;
+                }
+                resolve(response);
+            });
         });
 
-        console.log('Got response:', response);
-
-        if (!response?.success) {
-            throw new Error(response?.error || 'Failed to get recording data');
+        if (!blobData || !blobData.data) {
+            throw new Error('Failed to get recording data');
         }
 
-        if (!response.chunks || !Array.isArray(response.chunks) || response.chunks.length === 0) {
-            throw new Error('No video data received');
-        }
-
-        console.log('📥 Received data:', {
-            chunks: response.chunks.length,
-            type: response.type,
-            firstChunkSize: response.chunks[0]?.length
+        console.log('Received blob data:', {
+            size: blobData.size,
+            type: blobData.type
         });
 
-        // Convert arrays to Uint8Arrays
-        const chunks = response.chunks.map(chunk => {
-            if (!Array.isArray(chunk)) {
-                console.error('Invalid chunk type:', typeof chunk);
-                throw new Error('Invalid chunk type');
-            }
-            return new Uint8Array(chunk);
-        });
+        // Reconstruct the blob from the array data
+        const uint8Array = new Uint8Array(blobData.data);
+        recordingBlob = new Blob([uint8Array], { type: blobData.type });
 
-        if (chunks.some(chunk => chunk.length === 0)) {
-            throw new Error('Empty chunk detected');
-        }
-
-        // Create blob with original type
-        recordingBlob = new Blob(chunks, { 
-            type: response.type || 'video/webm' 
-        });
-
-        console.log('📦 Created video blob:', {
+        console.log('Created blob:', {
             size: recordingBlob.size,
             type: recordingBlob.type
         });
 
-        if (recordingBlob.size === 0) {
-            throw new Error('Empty video data');
-        }
+        // Create object URL for video playback
+        const videoURL = URL.createObjectURL(recordingBlob);
+        console.log('Created video URL:', videoURL);
+        
+        video.src = videoURL;
+        video.controls = true;
+
+        // Set up video event handlers
+        video.onloadeddata = () => {
+            console.log('Video loaded successfully');
+        };
+
+        video.onerror = (e) => {
+            console.error('Video error:', e);
+            URL.revokeObjectURL(videoURL);
+            showError('Failed to load video: ' + (video.error ? video.error.message : 'Unknown error'));
+        };
 
         // Test playback with original format
-        console.log('🎥 Testing original format:', recordingBlob.type);
+        console.log('Testing original format:', recordingBlob.type);
         const originalWorks = await testVideoPlayback(recordingBlob);
 
         if (!originalWorks) {
-            console.log('⚠️ Original format failed, trying alternatives...');
+            console.log('Original format failed, trying alternatives...');
             const formats = [
                 'video/webm;codecs=vp8,opus',
                 'video/webm;codecs=vp9,opus',
@@ -548,10 +553,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             let worked = false;
             for (const format of formats) {
-                console.log('🔄 Trying format:', format);
-                const altBlob = new Blob(chunks, { type: format });
+                console.log('Trying format:', format);
+                const altBlob = new Blob([recordingBlob], { type: format });
                 if (await testVideoPlayback(altBlob)) {
-                    console.log('✅ Format works:', format);
+                    console.log('Format works:', format);
                     recordingBlob = altBlob;
                     worked = true;
                     break;
@@ -562,15 +567,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 throw new Error('No supported video format found');
             }
         }
-
-        // Convert blob to data URL for video element
-        const videoDataUrl = await blobToBase64(recordingBlob);
-        console.log('🎥 Created data URL, length:', videoDataUrl.length);
-
-        // Load and display video
-        await loadVideo(video, videoDataUrl);
-        video.controls = true;
-        console.log('✅ Video loaded successfully');
 
         // Set up download buttons
         await setupDownloadButtons();
@@ -623,6 +619,48 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
 
+        // Set up Supabase upload
+        if (saveSupabaseBtn) {
+            saveSupabaseBtn.addEventListener('click', async () => {
+                try {
+                    const filename = `screen-recording-${new Date().toISOString()}.webm`;
+                    
+                    // Debug logging
+                    console.log('Debug - recordingBlob:', recordingBlob);
+                    console.log('Debug - filename:', filename);
+                    console.log('Debug - supabaseUploader available?', window.supabaseUploader);
+                    
+                    // Show loading state
+                    saveSupabaseBtn.style.opacity = '0.7';
+                    saveSupabaseBtn.style.pointerEvents = 'none';
+                    
+                    // Upload to Supabase
+                    const result = await window.supabaseUploader.uploadVideo(recordingBlob, filename);
+                    
+                    // Reset button state
+                    saveSupabaseBtn.style.opacity = '1';
+                    saveSupabaseBtn.style.pointerEvents = 'auto';
+                    
+                    if (result.success) {
+                        // Show share button and update its link
+                        shareButton.style.display = 'flex';
+                        shareButton.onclick = () => {
+                            navigator.clipboard.writeText(result.url);
+                            alert('Link copied to clipboard!');
+                        };
+                        
+                        alert('Successfully uploaded to Supabase!');
+                    }
+                } catch (error) {
+                    console.error('Failed to upload to Supabase:', error);
+                    alert('Failed to upload to Supabase. Please try again.');
+                    
+                    // Reset button state
+                    saveSupabaseBtn.style.opacity = '1';
+                    saveSupabaseBtn.style.pointerEvents = 'auto';
+                }
+            });
+        }
     } catch (error) {
         console.error('Failed to load video:', error);
         showError(error.message || 'Failed to load video');

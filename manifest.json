@@ -8,7 +8,8 @@
     "tabs",
     "activeTab",
     "storage",
-    "identity"
+    "identity",
+    "scripting"
   ],
   "oauth2": {
     "client_id": "458223563084-cdophu6pe21ihsf53h7fcs6nits0ktu3.apps.googleusercontent.com",
@@ -17,7 +18,8 @@
   "externally_connectable": {
     "matches": [
       "https://*.google.com/*",
-      "https://*.googleapis.com/*"
+      "https://*.googleapis.com/*",
+      "https://*.supabase.co/*"
     ]
   },
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAhm3X7qutsrskke84ltokTObnFJakd/d0XFQ6Ox2wQueHTGJM5GUNPTY/x8bdreNtGnfzvt/Sd0vABbR0wsS6lz5yY+g6ksMXJnigFe9N7uz8E3KojDpNLWJOo5A/6S2xt7V7cGVqr9K+YGi/E85c8uvZzIgTsWb4yoXpQkhQKMBHHcEkzJ/a7A4Om3HnWpAuWZiuEBQok/gkh4S0Lrc8sCrC6H1/0wviF/yEEg5PyJPphtJ0hr1KZYXdHSqzjA==",
@@ -26,17 +28,17 @@
     "https://www.googleapis.com/*",
     "https://accounts.google.com/*",
     "https://oauth2.googleapis.com/*",
-    "https://*.ffmpegwasm.netlify.app/*"
+    "https://*.ffmpegwasm.netlify.app/*",
+    "https://*.supabase.co/*",
+    "https://unpkg.com/*"
   ],
   "background": {
-    "service_worker": "background.js",
-    "type": "module"
+    "service_worker": "background.js"
   },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["js/recorder.js"],
-      "run_at": "document_start"
+      "js": ["js/recorder.js"]
     }
   ],
   "web_accessible_resources": [
@@ -45,6 +47,7 @@
         "lib/*",
         "ffmpeg/*",
         "preview.html",
+        "recorder.html",
         "js/*",
         "images/*"
       ],
@@ -65,6 +68,6 @@
     "128": "images/icon128.png"
   },
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://*.googleapis.com https://accounts.google.com https://oauth2.googleapis.com"
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; connect-src 'self' https://*.supabase.co"
   }
 }

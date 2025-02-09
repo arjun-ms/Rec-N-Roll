@@ -1,182 +1,199 @@
 <!DOCTYPE html>
 <html>
-<head>
+  <head>
     <title>Recording Preview - Screen Recorder</title>
+    <!-- Load local Supabase scripts -->
+    <script defer src="lib/supabase/supabase.js"></script>
+    <script defer src="js/supabase-init.js"></script>
+    <script defer src="js/supabase-upload.js"></script>
+
+    <!-- Dependencies -->
+    <script defer src="lib/ffmpeg/ffmpeg.min.js"></script>
+    <script defer src="lib/ffmpeg/ffmpeg-core.js"></script>
+
+    <!-- Main app code -->
+    <script defer src="js/preview.js"></script>
+
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f5f5f5;
-            min-height: 100vh;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 20px;
-        }
-        .video-container {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .options-container {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .video-player {
-            width: 100%;
-            border-radius: 4px;
-            margin-bottom: 20px;
-            background: #000;
-        }
-        .option-group {
-            border-bottom: 1px solid #eee;
-            padding: 15px 0;
-        }
-        .option-group:last-child {
-            border-bottom: none;
-        }
-        .option-group h3 {
-            margin: 0 0 10px 0;
-            color: #333;
-            font-size: 16px;
-        }
-        .option-item {
-            display: flex;
-            align-items: center;
-            padding: 10px;
-            margin: 5px 0;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-        .option-item:hover {
-            background-color: #f5f5f5;
-        }
-        .option-item img {
-            width: 24px;
-            height: 24px;
-            margin-right: 10px;
-            object-fit: contain;
-        }
-        .option-item .text {
-            flex: 1;
-        }
-        .option-item .title {
-            font-weight: 500;
-            color: #333;
-            margin-bottom: 2px;
-        }
-        .option-item .description {
-            color: #666;
-            font-size: 12px;
-        }
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-        .header h2 {
-            margin: 0;
-            color: #333;
-        }
-        .share-button {
-            display: none;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 16px;
-            background-color: #5b5b5b;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: background-color 0.2s;
-        }
-        .share-button:hover {
-            background-color: #969696;
-        }
-        .share-button img {
-            width: 16px;
-            height: 16px;
-        }
-        .error {
-            color: red;
-            margin-top: 10px;
-            display: none;
-        }
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 20px;
+        background-color: #f5f5f5;
+        min-height: 100vh;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 20px;
+      }
+      .video-container {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .options-container {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .video-player {
+        width: 100%;
+        border-radius: 4px;
+        margin-bottom: 20px;
+        background: #000;
+      }
+      .option-group {
+        border-bottom: 1px solid #eee;
+        padding: 15px 0;
+      }
+      .option-group:last-child {
+        border-bottom: none;
+      }
+      .option-group h3 {
+        margin: 0 0 10px 0;
+        color: #333;
+        font-size: 16px;
+      }
+      .option-item {
+        display: flex;
+        align-items: center;
+        padding: 10px;
+        margin: 5px 0;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+      }
+      .option-item:hover {
+        background-color: #f5f5f5;
+      }
+      .option-item img {
+        width: 24px;
+        height: 24px;
+        margin-right: 10px;
+        object-fit: contain;
+      }
+      .option-item .text {
+        flex: 1;
+      }
+      .option-item .title {
+        font-weight: 500;
+        color: #333;
+        margin-bottom: 2px;
+      }
+      .option-item .description {
+        color: #666;
+        font-size: 12px;
+      }
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+      }
+      .header h2 {
+        margin: 0;
+        color: #333;
+      }
+      .share-button {
+        display: none;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background-color: #5b5b5b;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background-color 0.2s;
+      }
+      .share-button:hover {
+        background-color: #969696;
+      }
+      .share-button img {
+        width: 16px;
+        height: 16px;
+      }
+      .error {
+        color: red;
+        margin-top: 10px;
+        display: none;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div class="container">
-        <div class="video-container">
-            <div class="header">
-                <h2>Recording Preview</h2>
-                <button class="share-button" id="shareButton">
-                    <img src="images/share.png" alt="Share">
-                    Share video
-                </button>
-            </div>
-            <video id="preview" class="video-player" controls></video>
-            <div id="error" class="error"></div>
+      <div class="video-container">
+        <div class="header">
+          <h2>Recording Preview</h2>
+          <button class="share-button" id="shareButton">
+            <img src="images/share.png" alt="Share" />
+            Share video
+          </button>
         </div>
-        <div class="options-container">
-            <div class="option-group">
-                <h3>Save</h3>
-                <div class="option-item" id="saveGoogleDrive">
-                    <img src="images/drive.png" alt="Google Drive">
-                    <div class="text">
-                        <div class="title">Save to Google Drive</div>
-                        <div class="description">Upload and share your recording</div>
-                    </div>
-                </div>
+        <video id="preview" class="video-player" controls></video>
+        <div id="error" class="error"></div>
+      </div>
+      <div class="options-container">
+        <div class="option-group">
+          <h3>Save</h3>
+          <div class="option-item" id="saveSupabase">
+            <img src="images/cloud.png" alt="Supabase" />
+            <div class="text">
+              <div class="title">Save to Supabase</div>
+              <div class="description">Upload and get a shareable link</div>
             </div>
-            <div class="option-group">
-                <h3>Export</h3>
-                <div class="option-item" id="downloadMp4">
-                    <img src="images/mp4.png" alt="MP4">
-                    <div class="text">
-                        <div class="title">Download as .mp4</div>
-                        <div class="description">Export an .mp4 video (recommended)</div>
-                    </div>
-                </div>
-                <div class="option-item" id="downloadWebm">
-                    <img src="images/webm.png" alt="WEBM">
-                    <div class="text">
-                        <div class="title">Download as .webm</div>
-                        <div class="description">Export a .webm video</div>
-                    </div>
-                </div>
-                <div class="option-item" id="downloadGif">
-                    <img src="images/gif.png" alt="GIF">
-                    <div class="text">
-                        <div class="title">Download as .gif</div>
-                        <div class="description">Export a GIF (max 30 seconds)</div>
-                    </div>
-                </div>
+          </div>
+          <div class="option-item" id="saveGoogleDrive">
+            <img src="images/drive.png" alt="Google Drive" />
+            <div class="text">
+              <div class="title">Save to Google Drive</div>
+              <div class="description">Upload and share your recording</div>
             </div>
-            <div class="option-group">
-                <h3>Advanced</h3>
-                <div class="option-item" id="addAudio">
-                    <img src="images/audio.png" alt="Audio">
-                    <div class="text">
-                        <div class="title">Add audio</div>
-                        <div class="description">Upload your own audio to add to the video</div>
-                    </div>
-                </div>
-            </div>
+          </div>
         </div>
+        <div class="option-group">
+          <h3>Export</h3>
+          <div class="option-item" id="downloadMp4">
+            <img src="images/mp4.png" alt="MP4" />
+            <div class="text">
+              <div class="title">Download as .mp4</div>
+              <div class="description">Export an .mp4 video (recommended)</div>
+            </div>
+          </div>
+          <div class="option-item" id="downloadWebm">
+            <img src="images/webm.png" alt="WEBM" />
+            <div class="text">
+              <div class="title">Download as .webm</div>
+              <div class="description">Export a .webm video</div>
+            </div>
+          </div>
+          <div class="option-item" id="downloadGif">
+            <img src="images/gif.png" alt="GIF" />
+            <div class="text">
+              <div class="title">Download as .gif</div>
+              <div class="description">Export a GIF (max 30 seconds)</div>
+            </div>
+          </div>
+        </div>
+        <div class="option-group">
+          <h3>Advanced</h3>
+          <div class="option-item" id="addAudio">
+            <img src="images/audio.png" alt="Audio" />
+            <div class="text">
+              <div class="title">Add audio</div>
+              <div class="description">
+                Upload your own audio to add to the video
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
-    <script src="lib/ffmpeg/ffmpeg.min.js"></script>
-    <script src="lib/ffmpeg/ffmpeg-core.js"></script>
-    <script src="js/drive-upload.js"></script>
-    <script src="js/preview.js"></script>
-</body>
+  </body>
 </html>

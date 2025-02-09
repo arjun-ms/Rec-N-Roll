@@ -33,32 +33,44 @@ startBtn.addEventListener('click', async () => {
         recordMicrophone: document.getElementById('recordMicrophone').checked
     };
 
-    chrome.runtime.sendMessage({
-        action: 'START_RECORDING',
-        options: options
-    }, response => {
-        if (response && response.success) {
-            startBtn.style.display = 'none';
-            stopBtn.style.display = 'inline-block';
-            status.textContent = 'Recording in progress...';
-            startTimer();
-        } else {
-            status.textContent = 'Failed to start recording';
-        }
-    });
+    try {
+        startBtn.disabled = true;
+        status.textContent = 'Initializing recording...';
+
+        // Send message directly to recorder.js
+        startRecording(options)
+            .then(() => {
+                startBtn.style.display = 'none';
+                stopBtn.style.display = 'inline-block';
+                status.textContent = 'Recording in progress...';
+                startTimer();
+            })
+            .catch(error => {
+                console.error('Failed to start recording:', error);
+                status.textContent = 'Failed to start recording';
+                startBtn.disabled = false;
+            });
+    } catch (error) {
+        console.error('Error in click handler:', error);
+        status.textContent = 'Failed to start recording';
+        startBtn.disabled = false;
+    }
 });
 
 stopBtn.addEventListener('click', () => {
-    chrome.runtime.sendMessage({
-        action: 'STOP_RECORDING'
-    }, response => {
-        if (response && response.success) {
-            startBtn.style.display = 'inline-block';
-            stopBtn.style.display = 'none';
-            status.textContent = 'Recording saved';
-            stopTimer();
-        } else {
-            status.textContent = 'Failed to stop recording';
-        }
-    });
+    try {
+        stopBtn.disabled = true;
+        status.textContent = 'Stopping recording...';
+
+        stopRecording();
+        startBtn.style.display = 'inline-block';
+        stopBtn.style.display = 'none';
+        status.textContent = 'Recording saved';
+        stopTimer();
+    } catch (error) {
+        console.error('Error stopping recording:', error);
+        status.textContent = 'Failed to stop recording';
+    } finally {
+        stopBtn.disabled = false;
+    }
 });
