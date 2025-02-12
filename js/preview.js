@@ -4,8 +4,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const saveSupabaseBtn = document.getElementById('saveSupabase');
     const shareButton = document.getElementById('shareButton');
     let recordingBlob = null;
-    let driveUploader = null;  
-    let driveUploader = null;  
+    let driveUploader = null; 
 
     shareButton.style.display = 'none';
 
