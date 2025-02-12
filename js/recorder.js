@@ -36,7 +36,8 @@ function createMediaRecorder(stream, mimeType) {
     }
 }
 
-async function startRecording(options = {}) {
+// Make startRecording available in the global scope for recorder-ui.js
+window.startRecording = async function(options = {}) {
     try {
         console.log('Starting recording with options:', options);
         
@@ -186,27 +187,19 @@ async function startRecording(options = {}) {
                     chunks: recordedChunks.length
                 });
 
-                // Convert blob to array buffer using FileReader for better compatibility
-                const arrayBuffer = await new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = () => {
-                        const buffer = reader.result;
-                        // Convert ArrayBuffer to Uint8Array for reliable transfer
-                        const uint8Array = new Uint8Array(buffer);
-                        resolve(Array.from(uint8Array)); // Convert to regular array for transfer
-                    };
-                    reader.onerror = () => reject(new Error('Failed to read blob'));
-                    reader.readAsArrayBuffer(finalBlob);
-                });
+                // Convert blob to array buffer for transfer
+                const arrayBuffer = await finalBlob.arrayBuffer();
+                const uint8Array = new Uint8Array(arrayBuffer);
+                const arrayData = Array.from(uint8Array);
 
                 console.log('Sending recording...', {
-                    length: arrayBuffer.length,
+                    length: arrayData.length,
                     type: finalBlob.type
                 });
 
                 const response = await chrome.runtime.sendMessage({
                     action: 'STORE_RECORDED_BLOB',
-                    chunks: [arrayBuffer], // Send as array of numbers
+                    chunks: [arrayData],
                     type: finalBlob.type
                 });
 
@@ -251,9 +244,10 @@ async function startRecording(options = {}) {
         recordedChunks = [];
         throw error;
     }
-}
+};
 
-function stopRecording() {
+// Make stopRecording available in the global scope for recorder-ui.js
+window.stopRecording = function() {
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {
         console.log('Stopping recording...');
         try {
@@ -263,7 +257,7 @@ function stopRecording() {
         }
     }
     isRecording = false;
-}
+};
 
 // Listen for messages
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
