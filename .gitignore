@@ -5,3 +5,4 @@ download-ffmpeg.js
 ffmpeg/*
 privatekey.pem
 publickey.pem
+screenity_architecture.md
