@@ -571,6 +571,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Set up download buttons
         await setupDownloadButtons();
 
+        // Set up feedback button
+        const feedbackBtn = document.getElementById('giveFeedback');
+        if (feedbackBtn) {
+            feedbackBtn.addEventListener('click', () => {
+                // Placeholder Google Form link - replace with actual form link
+                const feedbackFormUrl = 'https://forms.gle/vjAurBpfHmfz3kau9';
+                window.open(feedbackFormUrl, '_blank');
+            });
+        }
+
         // Show download button
         const downloadBtn = document.getElementById('downloadBtn');
         if (downloadBtn) {
