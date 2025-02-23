@@ -8,12 +8,8 @@
     "tabs",
     "activeTab",
     "storage",
-<<<<<<< HEAD
-    "identity"
-=======
     "identity",
     "scripting"
->>>>>>> ft-feedback-collection
   ],
   "oauth2": {
     "client_id": "458223563084-cdophu6pe21ihsf53h7fcs6nits0ktu3.apps.googleusercontent.com",
